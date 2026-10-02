@@ -1,0 +1,14 @@
+# Render.com blueprint - one-click hosting for the AppMap interface.
+# Push this repo to GitHub, then "New > Blueprint" on Render and point it here.
+services:
+  - type: web
+    name: appmap
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -w 2 -b 0.0.0.0:$PORT --timeout 60 dashboard:app
+    envVars:
+      - key: APPMAP_HOST
+        value: 0.0.0.0
+      - key: PYTHON_VERSION
+        value: "3.12.0"
