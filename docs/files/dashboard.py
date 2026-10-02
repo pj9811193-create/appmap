@@ -1,9 +1,38 @@
-<!doctype html>
+"""dashboard.py - AppMap's local web interface.
+
+Run it with:   python dashboard.py
+Open:          http://127.0.0.1:5000
+
+The server exposes:
+    GET /                 the single-page interface
+    GET /api/scan?target= JSON scan result (same pipeline as the CLI)
+    GET /api/health       liveness probe (used by hosting platforms)
+
+For hosting behind a real server, run it with gunicorn:
+    gunicorn -w 2 -b 0.0.0.0:8000 dashboard:app
+"""
+
+from __future__ import annotations
+
+import os
+
+from flask import Flask, Response, jsonify, request
+
+from appmap import InputError, __version__, parse_target, scan
+
+app = Flask(__name__)
+
+# When hosted, allow overriding the bind address via environment variables.
+HOST = os.environ.get("APPMAP_HOST", "127.0.0.1")
+PORT = int(os.environ.get("APPMAP_PORT", "5000"))
+
+
+_INDEX_HTML = """<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AppMap - interface preview</title>
+<title>AppMap - application-layer discovery</title>
 <style>
   :root {
     --bg:#0b0e13; --panel:#141821; --panel2:#1b212c; --line:#2a3140;
@@ -103,10 +132,9 @@
 <header>
   <div class="logo">A</div>
   <div>
-    <h1>AppMap <span class="badge">v1.0.0</span></h1>
-    <div class="sub">Interface preview &middot; sample data (offline)</div>
+    <h1>AppMap <span class="badge">v__VERSION__</span></h1>
+    <div class="sub">Safe OSI Layer 7 service &amp; metadata discovery</div>
   </div>
-  <a href="files.html" style="margin-left:auto;font-size:13px;border:1px solid var(--line);padding:7px 13px;border-radius:9px;color:var(--fg);background:var(--panel2);text-decoration:none">Browse all files &rarr;</a>
 </header>
 <main>
   <form class="search" id="form">
@@ -124,9 +152,8 @@
   <div id="out"><div class="empty"><div class="big">&#9783;</div>
     Enter a hostname or URL to map its application-layer services.</div></div>
 </main>
-<footer>AppMap v1.0.0 &middot; results are informational and reflect only what a service publicly exposes.</footer>
+<footer>AppMap v__VERSION__ &middot; results are informational and reflect only what a service publicly exposes.</footer>
 <script>
-const DEMO = {"tool": "AppMap", "version": "1.0.0", "target": "example.com", "url": "https://example.com", "scanned_at": "2026-10-02T12:20:00+00:00", "authorized_use_only": true, "dns": {"hostname": "example.com", "resolver": "dnspython", "records": {"A": ["93.184.216.34", "23.192.228.80"], "AAAA": ["2606:2800:220:1:248:1893:25c8:1946"], "MX": ["0 ."], "NS": ["a.iana-servers.net", "b.iana-servers.net"], "CNAME": [], "TXT": ["v=spf1 -all", "wgyf8z8cgvm2qmxpnbnldrcltvk4xqfn"]}, "errors": ["CNAME: no records of this type"]}, "http": {"requested_url": "https://example.com", "final_url": "https://example.com/", "scheme": "https", "status_code": 200, "reason": "OK", "redirect_chain": [{"status_code": 200, "url": "https://example.com/", "location": null}], "headers": {"Content-Type": "text/html; charset=UTF-8", "Server": "cloudflare"}, "content_type": "text/html; charset=UTF-8", "server": "cloudflare", "hints": {"Server": "cloudflare", "CF-Ray": "a4439ed8dc5026cb-BOM"}, "tls_used": true, "elapsed_ms": 156.5, "error": null, "ok": true}, "tls": {"hostname": "example.com", "port": 443, "connected": true, "tls_version": "TLS 1.3", "cipher": "TLS_AES_128_GCM_SHA256", "subject": {"commonName": "example.com"}, "issuer": {"organizationName": "DigiCert Inc", "commonName": "DigiCert TLS RSA SHA256 2020 CA1"}, "not_before": "Sep  3 00:00:00 2026 GMT", "not_after": "Oct 30 23:59:59 2026 GMT", "days_until_expiry": 28, "expired": false, "sans": ["example.com", "www.example.com"], "serial_number": "0A1B2C3D4E5F", "verified": true, "error": null}, "graph": {"name": "example.com", "type": "domain", "children": [{"name": "DNS", "type": "dns", "children": [{"name": "A 93.184.216.34", "type": "dns_record"}, {"name": "A 23.192.228.80", "type": "dns_record"}, {"name": "AAAA 2606:2800:220:1:248:1893:25c8:1946", "type": "dns_record"}, {"name": "MX 0 .", "type": "dns_record"}, {"name": "NS a.iana-servers.net", "type": "dns_record"}, {"name": "TXT v=spf1 -all", "type": "dns_record"}]}, {"name": "HTTPS service", "type": "web_service", "children": [{"name": "Status 200 OK", "type": "http_status"}, {"name": "Content-Type: text/html; charset=UTF-8", "type": "http_meta"}, {"name": "Server: cloudflare", "type": "http_meta"}, {"name": "CF-Ray: a4439ed8dc5026cb-BOM", "type": "http_meta"}]}, {"name": "TLS", "type": "tls", "children": [{"name": "TLS 1.3", "type": "tls_meta"}, {"name": "subject CN=example.com", "type": "tls_meta"}, {"name": "issuer DigiCert Inc", "type": "tls_meta"}, {"name": "expires in 28 days", "type": "tls_meta"}, {"name": "SANs (2): example.com, www.example.com", "type": "tls_meta"}]}]}};
 const $ = (s) => document.querySelector(s);
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g,
   c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -142,9 +169,10 @@ $("#form").addEventListener("submit", async (e) => {
   btn.innerHTML = '<span class="spinner"></span> Mapping';
   out.innerHTML = '<div class="empty">Contacting the target and collecting metadata&hellip;</div>';
   try {
-    // Offline preview: always show the baked-in sample scan.
-    const data = DEMO;
-    lastResult = data; render(data);
+    const res = await fetch("/api/scan?target=" + encodeURIComponent(target));
+    const data = await res.json();
+    if (!res.ok || data.error) { renderError(data.error || ("HTTP " + res.status)); }
+    else { lastResult = data; render(data); }
   } catch (err) {
     renderError("Request failed: " + err.message);
   } finally {
@@ -257,7 +285,44 @@ function downloadJson() {
   document.body.appendChild(a); a.click(); a.remove();
   URL.revokeObjectURL(a.href);
 }
-lastResult = DEMO; render(DEMO);
 </script>
 </body>
 </html>
+"""
+
+
+@app.route("/", methods=["GET"])
+def index() -> Response:
+    return Response(_INDEX_HTML.replace("__VERSION__", __version__), mimetype="text/html")
+
+
+@app.route("/api/scan", methods=["GET"])
+def api_scan():
+    """JSON API mirroring the CLI, used by the interface and by scripts."""
+    target = (request.args.get("target") or "").strip()
+    if not target:
+        return jsonify({"error": "missing 'target' query parameter"}), 400
+    try:
+        parse_target(target)
+    except InputError as exc:
+        return jsonify({"error": str(exc)}), 400
+    try:
+        result = scan(target)
+    except Exception as exc:  # pragma: no cover - defensive
+        return jsonify({"error": f"{type(exc).__name__}: {exc}"}), 500
+    return jsonify(result)
+
+
+@app.route("/api/health", methods=["GET"])
+def api_health():
+    return jsonify({"status": "ok", "tool": "AppMap", "version": __version__})
+
+
+def main() -> None:
+    print(f"AppMap interface running at http://{HOST}:{PORT}  (Ctrl+C to stop)")
+    print("Defensive use only - scan hosts you own or are authorised to test.")
+    app.run(host=HOST, port=PORT, debug=False)
+
+
+if __name__ == "__main__":
+    main()

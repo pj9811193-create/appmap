@@ -1,0 +1,11 @@
+# AppMap runtime dependencies
+# The core CLI works with the Python standard library alone; these packages
+# add optional capabilities. Install with:  pip install -r requirements.txt
+
+requests>=2.28      # HTTP/HTTPS metadata collection
+dnspython>=2.3      # richer DNS lookups (a built-in fallback resolver is used if absent)
+Flask>=2.2          # web interface (python dashboard.py)
+gunicorn>=20.1      # production WSGI server used when hosting the interface
+
+# Development / testing
+pytest>=7.0
