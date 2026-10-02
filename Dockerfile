@@ -18,5 +18,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Run behind gunicorn (a real WSGI server), not the Flask dev server.
+# Honour $PORT when the host provides one (Railway, Koyeb, Cloud Run, ...),
+# otherwise fall back to 8000 (Fly.io / plain docker run).
 EXPOSE 8000
-CMD ["gunicorn", "-w", "2", "-b", "0.0.0.0:8000", "--timeout", "60", "dashboard:app"]
+CMD ["sh", "-c", "gunicorn -w 2 -b 0.0.0.0:${PORT:-8000} --timeout 60 dashboard:app"]

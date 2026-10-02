@@ -1,0 +1,25 @@
+{
+  "name": "AppMap",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
+  "postCreateCommand": "pip install --no-cache-dir -r requirements.txt",
+  "forwardPorts": [
+    5000
+  ],
+  "portsAttributes": {
+    "5000": {
+      "label": "AppMap interface",
+      "onAutoForward": "openPreview",
+      "visibility": "public"
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python"
+      ],
+      "settings": {
+        "python.testing.pytestEnabled": true
+      }
+    }
+  }
+}

@@ -1,0 +1,28 @@
+# Fly.io deployment config (no Render required).
+#   fly launch --no-deploy   # creates/links the app
+#   fly deploy
+# Fly builds the included Dockerfile and gives you a public https://<app>.fly.dev URL.
+# Docs: https://fly.io/docs/
+
+app = "appmap"
+primary_region = "sin"   # Singapore - closest to India; change if you prefer
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  APPMAP_HOST = "0.0.0.0"
+
+[http_service]
+  internal_port = 8000        # matches the Dockerfile / gunicorn port
+  force_https = true
+  auto_stop_machines = true   # scale to zero when idle (keeps it cheap)
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [[http_service.checks]]
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "10s"
+    method = "GET"
+    path = "/api/health"

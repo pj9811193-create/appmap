@@ -60,7 +60,10 @@ appmap/
 ├── Dockerfile         # container image for hosting the interface
 ├── .dockerignore
 ├── Procfile           # for Heroku-style / gunicorn hosts
-├── render.yaml        # Render.com blueprint for one-click hosting
+├── fly.toml           # Fly.io deployment config
+├── railway.json       # Railway deployment config
+├── .devcontainer/     # GitHub Codespaces setup (run the app, forward port 5000)
+├── docs/              # GitHub Pages site + HOSTING.md
 ├── README.md
 ├── conftest.py        # makes the flat layout importable under pytest
 └── tests/
@@ -211,16 +214,22 @@ docker run -p 8000:8000 appmap   # then open http://127.0.0.1:8000
 
 The image runs behind **gunicorn**, not the Flask development server.
 
-### Option C - a managed host (Render / Railway / Fly / Heroku)
+### Option C - a managed host or Codespaces
 
-This repo ships the files these platforms expect:
+This repo ships the configs these platforms expect (none of them is Render):
 
-- `Procfile` -> `web: gunicorn -w 2 -b 0.0.0.0:$PORT --timeout 60 dashboard:app`
-- `render.yaml` -> a Render.com blueprint (push to GitHub, then *New > Blueprint*)
-- `Dockerfile` -> for Fly.io, Railway, or any container host
+- `.devcontainer/` -> **GitHub Codespaces**: run `python dashboard.py`, make port
+  5000 public, and get a live scanner URL - all inside GitHub.
+- `fly.toml` -> **Fly.io**: `fly launch --no-deploy && fly deploy`.
+- `railway.json` -> **Railway**: deploy from the GitHub repo; it builds the Dockerfile.
+- `Dockerfile` -> works on Fly, Railway, Koyeb, Hugging Face Spaces, Cloud Run,
+  or any VPS. It honours the host's `$PORT` and falls back to 8000.
+- `Procfile` -> Heroku-style hosts.
+- **No-account option:** run it locally and tunnel it -
+  `cloudflared tunnel --url http://localhost:5000` (or
+  `ssh -R 80:localhost:5000 nokey@localhost.run`) prints a public https URL.
 
-The app reads `APPMAP_HOST` and `APPMAP_PORT` from the environment, so it binds
-to `0.0.0.0` and the platform-assigned port automatically.
+See **[docs/HOSTING.md](docs/HOSTING.md)** for step-by-step instructions.
 
 > **Note on hosting:** a public deployment is reachable by anyone, so only
 deploy it where you intend to offer it, and keep the authorisation notice in
