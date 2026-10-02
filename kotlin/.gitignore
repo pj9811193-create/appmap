@@ -1,0 +1,6 @@
+.gradle/
+build/
+hs_err_pid*.log
+*.log
+*.json
+*.csv
