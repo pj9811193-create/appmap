@@ -13,14 +13,18 @@ brute forcing, credential testing, or any attempt to bypass access controls.
 ## Requirements
 
 - **JDK 21** (tested with Temurin 21.0.12)
-- **Gradle 8.10** (a Gradle wrapper is not bundled; use a system Gradle)
+- **Gradle 8.10.2** - the Gradle wrapper (`./gradlew`) is included, so you do
+  not need Gradle installed system-wide.
 
 ## Build
 
 ```bash
-gradle build            # compiles and runs the unit tests
-gradle fatJar           # builds a standalone runnable jar
+./gradlew build         # compiles and runs the unit tests
+./gradlew fatJar        # builds a standalone runnable jar
 ```
+
+(On Windows use `gradlew.bat`. If you have Gradle installed, `gradle build`
+works too.)
 
 The standalone jar lands in `build/libs/appmap-kotlin-1.0.0-all.jar`.
 
@@ -45,6 +49,8 @@ appmap-kotlin/
 ├── build.gradle.kts        Gradle build (Kotlin JVM + application plugin)
 ├── settings.gradle.kts     resolves plugins from Maven Central
 ├── gradle.properties       JVM args + proxy settings
+├── gradlew / gradlew.bat   Gradle wrapper (no system Gradle needed)
+├── gradle/wrapper/         wrapper jar + properties
 └── src/
     ├── main/kotlin/com/appmap/
     │   ├── Main.kt          CLI, scan pipeline, terminal report
