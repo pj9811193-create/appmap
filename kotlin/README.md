@@ -80,6 +80,21 @@ appmap-kotlin/
 - The JSON shape mirrors the Python version, with an extra `"runtime":
   "kotlin/jvm"` field.
 
+## Continuous integration
+
+`.github/workflows/kotlin-build.yml` builds, tests and packages the jar on every
+push that touches `kotlin/`, and uploads the standalone jar as a build artifact.
+
+## Building behind a proxy
+
+`gradle.properties` intentionally contains no proxy settings, so the build works
+on CI and on normal machines. If you are behind a proxy, pass it on the command
+line rather than committing it:
+
+```bash
+./gradlew build -Dhttps.proxyHost=proxy.example -Dhttps.proxyPort=3128
+```
+
 ## Running on a memory-constrained machine
 
 Gradle and the Kotlin compiler are memory-hungry. If you hit
